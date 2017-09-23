@@ -1,15 +1,19 @@
 (ns rask.datastream
   (:refer-clojure :exclude [print])
-  (:import [org.apache.flink.api.common.functions FlatMapFunction]
+  (:import [org.apache.flink.api.common.functions RichFlatMapFunction]
            [org.apache.flink.util Collector]
            [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator]
            [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
-           [org.apache.flink.api.java.functions KeySelector]))
+           [org.apache.flink.api.java.functions KeySelector]
+           [org.apache.flink.configuration Configuration]))
 
 (defn flat-map
   "Accepts a function f that should return a sequence of results that would be added to collector"
   [f ^DataStream stream]
-  (let [p (proxy [FlatMapFunction] []
+  (let [p (proxy [RichFlatMapFunction] []
+            (open [^Configuration _]
+              (when-let [ns (:rask.api/namespace (meta f))]
+                (require ns)))
             (flatMap [x ^Collector acc]
               (doseq [y (f x)]
                 (.collect acc y))))]
