@@ -8,7 +8,7 @@
 (defn tuple
   "Creates a Flink tuple of type based on number number of arguments.
 
-  Supports creating tuples from Tuple0 to Tuple16."
+  Supports creating tuples from Tuple0 to Tuple25."
   ([]
    (Tuple0.))
   ([x]
@@ -40,7 +40,11 @@
        19 (Tuple22. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22)
        20 (Tuple23. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23)
        21 (Tuple24. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24)
-       22 (Tuple25. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25)))))
+       22 (Tuple25. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25)
+       (throw
+         (IllegalArgumentException.
+           (format "Cannot create Tuple with more than 25 arguments. Too many arguments: %s."
+                   (+ (count xs) 3))))))))
 
 (defmacro type-hint
   "Expands to code that defines a class implementing org.apache.flink.api.common.typeinfo.TypeHint<T>
