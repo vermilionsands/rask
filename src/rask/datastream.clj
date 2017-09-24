@@ -1,8 +1,9 @@
 (ns rask.datastream
-  (:refer-clojure :exclude [print])
+  (:refer-clojure :exclude [print reduce])
+  (:require [rask.data :as data])
   (:import [org.apache.flink.api.common.functions RichFlatMapFunction]
            [org.apache.flink.util Collector]
-           [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator]
+           [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator DataStreamSink]
            [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
            [org.apache.flink.api.java.functions KeySelector]
            [org.apache.flink.configuration Configuration]))
@@ -21,9 +22,11 @@
 
 (defn by-key
   "Partitions the operator state of a stream by the given key positions.
-   Accepts fields which be a sequence of:
-       indexes
-       names of a public fields or a getter methods with parentheses of the stream underlying type
+
+   Accepts fields which be can be a sequence of:
+   * indexes
+   * names of a public fields
+   * getter methods with parentheses of the stream underlying type
    or a KeySelector and a stream"
   [fields-or-key-selector ^DataStream stream]
   (if (or (seq? fields-or-key-selector)
@@ -45,6 +48,16 @@
     (number? key) (.sum stream (int key))
     (string? key) (.sum stream ^String key)))
 
+(defn time-window
+  "Windows this KeyedStream into tumbling time windows.
+
+  size and slide should be either number of milliseconds, or instances of
+  org.apache.flink.streaming.api.windowing.time.Time"
+  ([size ^KeyedStream stream]
+   (.timeWindow stream (data/time size)))
+  ([size slide ^KeyedStream stream]
+   (.timeWindow stream (data/time size) (data/time slide))))
+
 (defn returns
   "Adds a type information hint about the return type of this operator.
    Use this when Flink cannot determine automatically what the produced type of a function is.
@@ -58,6 +71,19 @@
     (instance? TypeHint class-or-type)        (.returns stream ^TypeHint class-or-type)
     (instance? TypeInformation class-or-type) (.returns stream ^TypeInformation class-or-type)))
 
+(defn parallelism
+  "Sets the parallelism for this sink.
+
+  n must be higher than zero."
+  [n ^DataStreamSink stream]
+  (.setParallelism stream n))
+
 (defn print
+  "Writes a DataStream to the standard output stream (stdout)."
   [stream]
   (.print stream))
+
+(defn print-to-err
+  "Writes a DataStream to the standard output stream (stderr). "
+  [stream]
+  (.printToErr stream))
