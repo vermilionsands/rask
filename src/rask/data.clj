@@ -1,7 +1,8 @@
 (ns rask.data
   (:require [rask.util.genclass :as genclass])
-  (:import [org.apache.flink.api.java.tuple Tuple2 Tuple3 Tuple4 Tuple5 Tuple6 Tuple7 Tuple8 Tuple9 Tuple10 Tuple0
-                                            Tuple1 Tuple11 Tuple12 Tuple13 Tuple14 Tuple15 Tuple16]
+  (:import [org.apache.flink.api.java.tuple Tuple0 Tuple1 Tuple2 Tuple3 Tuple4 Tuple5 Tuple6 Tuple7 Tuple8 Tuple9
+                                            Tuple10 Tuple11 Tuple12 Tuple13 Tuple14 Tuple15 Tuple16 Tuple17 Tuple18
+                                            Tuple19 Tuple20 Tuple21 Tuple22 Tuple23 Tuple24 Tuple25 Tuple]
            [clojure.lang DynamicClassLoader]))
 
 (defn tuple
@@ -15,7 +16,7 @@
   ([x1 x2]
    (Tuple2. x1 x2))
   ([x1 x2 x3 & xs]
-   (let [[x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16] xs]
+   (let [[x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25] xs]
      (condp = (count xs)
        0  (Tuple3.  x1 x2 x3)
        1  (Tuple4.  x1 x2 x3 x4)
@@ -30,7 +31,16 @@
        10 (Tuple13. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13)
        11 (Tuple14. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14)
        12 (Tuple15. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15)
-       13 (Tuple16. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16)))))
+       13 (Tuple16. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16)
+       14 (Tuple17. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17)
+       15 (Tuple18. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18)
+       16 (Tuple19. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19)
+       17 (Tuple20. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20)
+       18 (Tuple21. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21)
+       19 (Tuple22. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22)
+       20 (Tuple23. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23)
+       21 (Tuple24. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24)
+       22 (Tuple25. x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25)))))
 
 (defmacro type-hint
   "Expands to code that defines a class implementing org.apache.flink.api.common.typeinfo.TypeHint<T>
@@ -59,7 +69,13 @@
           {:types all-types})
         options-map {:name classname :extends extends}
         [cname bytecode] (genclass/generate-class options-map)]
-    (when true
+    (when *compile-files*
       (Compiler/writeClassFile cname bytecode))
     (.defineClass ^DynamicClassLoader @Compiler/LOADER (str (:name options-map)) bytecode nil)
     `(new ~classname)))
+
+(defmacro tuple-hint
+  "TypeHint for flink Tuple. Tuple class would be determined based on count of generic types."
+  [& generic-types]
+  (let [c (Tuple/getTupleClass (count generic-types))]
+    `(type-hint ~c ~@generic-types)))
