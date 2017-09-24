@@ -1,24 +1,35 @@
 (ns rask.datastream
   (:refer-clojure :exclude [print reduce])
   (:require [rask.data :as data])
-  (:import [org.apache.flink.api.common.functions RichFlatMapFunction]
+  (:import [org.apache.flink.api.common.functions FlatMapFunction ReduceFunction]
            [org.apache.flink.util Collector]
-           [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator DataStreamSink]
+           [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
+                                                      DataStreamSink WindowedStream]
            [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
            [org.apache.flink.api.java.functions KeySelector]
-           [org.apache.flink.configuration Configuration]))
+           [rask.api RequiringFunction]))
 
 (defn flat-map
-  "Accepts a function f that should return a sequence of results that would be added to collector"
+  "Accepts a function f that should take one argument and return a sequence of results
+  that would be added to collector."
   [f ^DataStream stream]
-  (let [p (proxy [RichFlatMapFunction] []
-            (open [^Configuration _]
-              (when-let [ns (:rask.api/namespace (meta f))]
-                (require ns)))
+  (let [p (proxy [RequiringFunction FlatMapFunction] [f]
             (flatMap [x ^Collector acc]
               (doseq [y (f x)]
                 (.collect acc y))))]
     (.flatMap stream p)))
+
+(defn reduce
+  "Accepts a function f that takes two arguments."
+  [f ^DataStream stream]
+  (let [p (proxy [RequiringFunction ReduceFunction] [f]
+            (reduce [x y]
+              (f x y)))]
+    ;; a bit ugly
+    (cond
+      (instance? KeyedStream stream) (.reduce ^KeyedStream stream p)
+      (instance? WindowedStream stream) (.reduce ^WindowedStream stream p)
+      :else (.reduce stream p))))
 
 (defn by-key
   "Partitions the operator state of a stream by the given key positions.
