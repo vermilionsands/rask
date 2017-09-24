@@ -1,9 +1,12 @@
 (ns rask.data
+  (:refer-clojure :exclude [time])
   (:require [rask.util.genclass :as genclass])
-  (:import [org.apache.flink.api.java.tuple Tuple0 Tuple1 Tuple2 Tuple3 Tuple4 Tuple5 Tuple6 Tuple7 Tuple8 Tuple9
+  (:import [clojure.lang DynamicClassLoader]
+           [java.util.concurrent TimeUnit]
+           [org.apache.flink.api.java.tuple Tuple0 Tuple1 Tuple2 Tuple3 Tuple4 Tuple5 Tuple6 Tuple7 Tuple8 Tuple9
                                             Tuple10 Tuple11 Tuple12 Tuple13 Tuple14 Tuple15 Tuple16 Tuple17 Tuple18
                                             Tuple19 Tuple20 Tuple21 Tuple22 Tuple23 Tuple24 Tuple25 Tuple]
-           [clojure.lang DynamicClassLoader]))
+           [org.apache.flink.streaming.api.windowing.time Time]))
 
 (defn tuple
   "Creates a Flink tuple of type based on number number of arguments.
@@ -45,6 +48,32 @@
          (IllegalArgumentException.
            (format "Cannot create Tuple with more than 25 arguments. Too many arguments: %s."
                    (+ (count xs) 3))))))))
+
+(defn time
+  "Accepts either an instance of org.apache.flink.streaming.api.windowing.time.Time which would be returned or
+  a number and time unit, from which a new instance of Time would be created.
+
+  When no time-unit is passed defaults to milliseconds."
+  ([ms-or-instance]
+   (if (instance? Time ms-or-instance)
+     ms-or-instance
+     (Time/of ms-or-instance TimeUnit/MILLISECONDS)))
+  ([size ^TimeUnit time-unit]
+   (Time/of size time-unit)))
+
+(defn time-unit
+  "Returns a java.util.concurrent TimeUnit based on keyword
+
+  Accepts :nanoseconds, :microseconds, :milliseconds, :seconds, :minutes, :hours, :days."
+  [x]
+  (cond = x
+    :nanoseconds TimeUnit/NANOSECONDS
+    :microseconds TimeUnit/MICROSECONDS
+    :milliseconds TimeUnit/MILLISECONDS
+    :seconds TimeUnit/SECONDS
+    :minutes TimeUnit/MINUTES
+    :hours TimeUnit/HOURS
+    :days TimeUnit/DAYS))
 
 (defmacro type-hint
   "Expands to code that defines a class implementing org.apache.flink.api.common.typeinfo.TypeHint<T>
