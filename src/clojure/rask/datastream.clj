@@ -71,7 +71,7 @@
                (IllegalArgumentException.
                  (format "Unsupported stream type: %s" (class stream))))))))
 
-(defn ^KeyedStream by-key
+(defn ^KeyedStream key-by
   "Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
 
    Accepts fields which be can be a sequence of:
@@ -100,7 +100,7 @@
         (IllegalArgumentException.
           (format "Unsupported key %s: " (class key)))))))
 
-(defn sum
+(defn ^SingleOutputStreamOperator sum
   "Applies an aggregation that gives a rolling sum of the data stream at the given position grouped by the given key.
    An independent aggregate is kept per key.
 
@@ -110,6 +110,48 @@
   (cond
     (number? key) (.sum stream (int key))
     (string? key) (.sum stream ^String key)))
+
+(defn ^SingleOutputStreamOperator min
+  "Applies an aggregation that gives the current minimum of the data stream at the given field expression by the
+  given key. An independent aggregate is kept per key."
+  [key ^KeyedStream stream]
+  (cond
+    (number? key) (.min stream (int key))
+    (string? key) (.min stream ^String key)))
+
+(defn ^SingleOutputStreamOperator min-by
+  "Applies an aggregation that gives the current element with the minimum value at the given position by the
+  given key. An independent aggregate is kept per key.
+
+  If more elements have the minimum value at the given position, the operator returns the first one by default
+  unless first? is set to false."
+  ([key ^KeyedStream stream]
+   (min-by key true stream))
+  ([key first? ^KeyedStream stream]
+   (cond
+     (number? key) (.minBy stream (int key) ^boolean first?)
+     (string? key) (.minBy stream ^String key ^boolean first?))))
+
+(defn ^SingleOutputStreamOperator max
+  "Applies an aggregation that gives the current maximum of the data stream at the given field expression by the
+  given key. An independent aggregate is kept per key."
+  [key ^KeyedStream stream]
+  (cond
+    (number? key) (.max stream (int key))
+    (string? key) (.max stream ^String key)))
+
+(defn ^SingleOutputStreamOperator max-by
+  "Applies an aggregation that gives the current element with the maximum value at the given position by the
+  given key. An independent aggregate is kept per key.
+
+  If more elements have the minimum value at the given position, the operator returns the first one by default
+  unless first? is set to false."
+  ([key ^KeyedStream stream]
+   (max-by key true stream))
+  ([key first? ^KeyedStream stream]
+   (cond
+     (number? key) (.maxBy stream (int key) ^boolean first?)
+     (string? key) (.maxBy stream ^String key ^boolean first?))))
 
 (defn time-window
   "Windows this KeyedStream into tumbling time windows.
