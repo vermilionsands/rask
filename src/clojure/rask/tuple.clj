@@ -1,4 +1,5 @@
 (ns rask.tuple
+  (:refer-clojure :exclude [nth])
   (:require [rask.util :as util])
   (:import [org.apache.flink.api.java.tuple Tuple0 Tuple1 Tuple2 Tuple3 Tuple4 Tuple5 Tuple6 Tuple7 Tuple8 Tuple9
                                             Tuple10 Tuple11 Tuple12 Tuple13 Tuple14 Tuple15 Tuple16 Tuple17 Tuple18
@@ -44,6 +45,15 @@
          (IllegalArgumentException.
            (format "Cannot create Tuple with more than 25 arguments. Too many arguments: %s."
                    (+ (count xs) 3))))))))
+
+(defn nth
+  "Gets the field at the specified position.
+
+  If field is nil and not-found was specified would return not-found."
+  ([^Tuple tuple index]
+   (nth tuple index nil))
+  ([^Tuple tuple index not-found]
+   (or (.getField tuple index) not-found)))
 
 (defmacro tuple-hint
   "TypeHint for flink Tuple. Tuple class would be determined based on count of generic types."
