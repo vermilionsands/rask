@@ -1,7 +1,7 @@
 (ns rask.datastream
   (:refer-clojure :exclude [filter map print reduce])
   (:require [rask.util :as util])
-  (:import [org.apache.flink.api.common.functions FlatMapFunction ReduceFunction MapFunction FilterFunction]
+  (:import [org.apache.flink.api.common.functions FlatMapFunction ReduceFunction MapFunction FilterFunction FoldFunction]
            [org.apache.flink.util Collector]
            [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
                                                       DataStreamSink WindowedStream]
@@ -49,17 +49,27 @@
   For WindowedStream:
   Applies a functional reduce function to the window and returns the reduced value.
 
-  Accepts a function f that takes two arguments."
-  [f ^DataStream stream]
-  (let [p (proxy [RequiringFunction ReduceFunction] [f]
-            (reduce [x y]
-              (f x y)))]
-    (cond
-      (instance? KeyedStream stream) (.reduce ^KeyedStream stream p)
-      (instance? WindowedStream stream) (.reduce ^WindowedStream stream p)
-      :else (throw
-              (IllegalArgumentException.
-                (format "Unsupported stream type: %s" (class stream)))))))
+  Accepts a function f that takes two arguments. If val is supplied it would be used as an initial valiue."
+  ([f ^DataStream stream]
+   (let [p (proxy [RequiringFunction ReduceFunction] [f]
+             (reduce [x y]
+               (f x y)))]
+     (cond
+       (instance? KeyedStream stream) (.reduce ^KeyedStream stream p)
+       (instance? WindowedStream stream) (.reduce ^WindowedStream stream p)
+       :else (throw
+               (IllegalArgumentException.
+                 (format "Unsupported stream type: %s" (class stream)))))))
+  ([f val ^DataStream stream]
+   (let [p (proxy [RequiringFunction FoldFunction] [f]
+             (fold [x y]
+               (f x y)))]
+     (cond
+       (instance? KeyedStream stream) (.fold val ^KeyedStream stream p)
+       (instance? WindowedStream stream) (.fold val ^WindowedStream stream p)
+       :else (throw
+               (IllegalArgumentException.
+                 (format "Unsupported stream type: %s" (class stream))))))))
 
 (defn ^KeyedStream by-key
   "Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
