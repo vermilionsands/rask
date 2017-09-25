@@ -9,4 +9,3 @@
                  [org.apache.flink/flink-clients_2.10 "1.3.2"]]
   :source-paths      ["src/clojure"]
   :java-source-paths ["src/java"])
-;; todo - move deps to provided
