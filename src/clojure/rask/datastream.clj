@@ -1,5 +1,5 @@
 (ns rask.datastream
-  (:refer-clojure :exclude [filter map print reduce])
+  (:refer-clojure :exclude [filter map max min print reduce])
   (:require [rask.util :as util])
   (:import [org.apache.flink.api.common.functions FlatMapFunction ReduceFunction MapFunction FilterFunction FoldFunction]
            [org.apache.flink.util Collector]
@@ -74,31 +74,43 @@
 (defn ^KeyedStream key-by
   "Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
 
-   Accepts fields which be can be a sequence of:
+   Accepts a key which be can be:
+
+   a sequence of:
    * indexes
    * names of a public fields
    * getter methods with parentheses of the stream underlying type
-   or a KeySelector and a stream."
+
+   or
+   * a one arg function that returns a key
+   * a KeySelector."
   [key ^DataStream stream]
-  (if (instance? KeySelector key)
+  (cond
+    (fn? key)
+    (let [p (proxy [RequiringFunction KeySelector] [key]
+              (getKey [x]
+                (key x)))]
+      (.keyBy stream ^KeySelector p))
+
+    (instance? KeySelector key)
     (.keyBy stream ^KeySelector key)
-    (cond
-      (sequential? key)
-      (let [[first-key] key]
-        (cond
-          (number? first-key) (.keyBy stream ^ints (int-array key))
-          (string? first-key) (.keyBy stream ^"[Ljava.lang.String;" (into-array String key))))
 
-      (number? key)
-      (.keyBy stream ^ints (int-array [key]))
+    (sequential? key)
+    (let [[first-key] key]
+      (cond
+        (number? first-key) (.keyBy stream ^ints (int-array key))
+        (string? first-key) (.keyBy stream ^"[Ljava.lang.String;" (into-array String key))))
 
-      (string? key)
-      (.keyBy stream ^"[Ljava.lang.String;" (into-array String [key]))
+    (number? key)
+    (.keyBy stream ^ints (int-array [key]))
 
-      :else
-      (throw
-        (IllegalArgumentException.
-          (format "Unsupported key %s: " (class key)))))))
+    (string? key)
+    (.keyBy stream ^"[Ljava.lang.String;" (into-array String [key]))
+
+    :else
+    (throw
+      (IllegalArgumentException.
+        (format "Unsupported key %s: " (class key))))))
 
 (defn ^SingleOutputStreamOperator sum
   "Applies an aggregation that gives a rolling sum of the data stream at the given position grouped by the given key.
