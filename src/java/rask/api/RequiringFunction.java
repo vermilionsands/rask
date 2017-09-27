@@ -12,15 +12,17 @@ public abstract class RequiringFunction implements Serializable {
   private static Var FIND_NS = RT.var("clojure.core", "find-ns");
   private static Keyword NS_KEY = Keyword.intern("rask.api", "namespace");
   private Symbol implNs = null;
+  IFn fn = null;
 
-  public RequiringFunction(Object implementation) {
-    Symbol s = getImplNs(implementation);
+  public RequiringFunction(IFn fn) {
+    this.fn = fn;
+    Symbol s = getImplNs(fn);
     if (s != null) {
       implNs = s;
     }
   }
 
-  public Symbol getImplNs(Object x) {
+  private Symbol getImplNs(IFn x) {
     IPersistentMap meta = RT.meta(x);
     return (meta != null) ? (Symbol)RT.get(meta, NS_KEY) : null;
   }

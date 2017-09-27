@@ -1,23 +1,18 @@
 (ns rask.datastream
   (:refer-clojure :exclude [filter map max min print reduce])
   (:require [rask.util :as util])
-  (:import [org.apache.flink.api.common.functions FlatMapFunction ReduceFunction MapFunction FilterFunction FoldFunction]
-           [org.apache.flink.util Collector]
-           [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
+  (:import [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
                                                       DataStreamSink WindowedStream]
            [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
            [org.apache.flink.api.java.functions KeySelector]
-           [rask.api RequiringFunction]))
+           [rask.api FlatMapFn MapFn FilterFn FoldFn ReduceFn KeySelectorFn]))
 
 (defn ^DataStream map
   "Takes one element and produces one element.
 
   Accepts a one arg function"
   [f ^DataStream stream]
-  (let [p (proxy [RequiringFunction MapFunction] [f]
-            (map [x]
-              (f x)))]
-    (.map stream p)))
+  (.map stream (MapFn. f)))
 
 (defn ^DataStream flat-map
   "Takes one element and produces zero, one, or more elements.
@@ -25,21 +20,14 @@
   Accepts a function f that should take one argument and return a sequence of results
   that would be added to collector."
   [f ^DataStream stream]
-  (let [p (proxy [RequiringFunction FlatMapFunction] [f]
-            (flatMap [x ^Collector acc]
-              (doseq [y (f x)]
-                (.collect acc y))))]
-    (.flatMap stream p)))
+  (.flatMap stream (FlatMapFn. f)))
 
 (defn ^DataStream filter
   "Evaluates a predicate for each element and retains those for which the predicate returns true.
 
   Accepts a one arg function that would be coerced to boolean."
   [f ^DataStream stream]
-  (let [p (proxy [RequiringFunction FilterFunction] [f]
-            (filter [x]
-              (boolean (f x))))]
-    (.filter stream p)))
+  (.filter stream (FilterFn. f)))
 
 (defn ^DataStream reduce
   "For KeyedStream:
@@ -51,22 +39,18 @@
 
   Accepts a function f that takes two arguments. If val is supplied it would be used as an initial valiue."
   ([f ^DataStream stream]
-   (let [p (proxy [RequiringFunction ReduceFunction] [f]
-             (reduce [x y]
-               (f x y)))]
+   (let [f (ReduceFn. f)]
      (cond
-       (instance? KeyedStream stream) (.reduce ^KeyedStream stream p)
-       (instance? WindowedStream stream) (.reduce ^WindowedStream stream p)
+       (instance? KeyedStream stream) (.reduce ^KeyedStream stream f)
+       (instance? WindowedStream stream) (.reduce ^WindowedStream stream f)
        :else (throw
                (IllegalArgumentException.
                  (format "Unsupported stream type: %s" (class stream)))))))
   ([f val ^DataStream stream]
-   (let [p (proxy [RequiringFunction FoldFunction] [f]
-             (fold [x y]
-               (f x y)))]
+   (let [f (FoldFn. f)]
      (cond
-       (instance? KeyedStream stream) (.fold val ^KeyedStream stream p)
-       (instance? WindowedStream stream) (.fold val ^WindowedStream stream p)
+       (instance? KeyedStream stream) (.fold val ^KeyedStream stream f)
+       (instance? WindowedStream stream) (.fold val ^WindowedStream stream f)
        :else (throw
                (IllegalArgumentException.
                  (format "Unsupported stream type: %s" (class stream))))))))
@@ -87,10 +71,7 @@
   [key ^DataStream stream]
   (cond
     (fn? key)
-    (let [p (proxy [RequiringFunction KeySelector] [key]
-              (getKey [x]
-                (key x)))]
-      (.keyBy stream ^KeySelector p))
+    (.keyBy stream ^KeySelector (KeySelectorFn. key))
 
     (instance? KeySelector key)
     (.keyBy stream ^KeySelector key)
