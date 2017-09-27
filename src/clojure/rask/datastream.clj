@@ -165,7 +165,7 @@
      (number? key) (.maxBy stream (int key) ^boolean first?)
      (string? key) (.maxBy stream ^String key ^boolean first?))))
 
-(defn time-window
+(defn ^WindowedStream time-window
   "Windows this KeyedStream into tumbling time windows.
 
   size and slide should be either number of milliseconds, or instances of
@@ -175,7 +175,7 @@
   ([size slide ^KeyedStream stream]
    (.timeWindow stream (util/time size) (util/time slide))))
 
-(defn returns
+(defn ^SingleOutputStreamOperator returns
   "Adds a type information hint about the return type of this operator.
    Use this when Flink cannot determine automatically what the produced type of a function is.
 
@@ -188,19 +188,19 @@
     (instance? TypeHint class-or-type)        (.returns stream ^TypeHint class-or-type)
     (instance? TypeInformation class-or-type) (.returns stream ^TypeInformation class-or-type)))
 
-(defn parallelism
+(defn ^DataStreamSink parallelism
   "Sets the parallelism for this sink.
 
   n must be higher than zero."
   [n ^DataStreamSink stream]
   (.setParallelism stream n))
 
-(defn print
+(defn ^DataStreamSink print
   "Writes a DataStream to the standard output stream (stdout)."
-  [stream]
+  [^DataStream stream]
   (.print stream))
 
-(defn print-to-err
+(defn ^DataStreamSink print-to-err
   "Writes a DataStream to the standard output stream (stderr). "
-  [stream]
+  [^DataStream stream]
   (.printToErr stream))
