@@ -1,9 +1,20 @@
 (ns rask.util
   (:refer-clojure :exclude [time])
-  (:require [rask.util.genclass :as genclass])
+  (:require [clojure.walk :as walk]
+            [rask.util.genclass :as genclass])
   (:import [clojure.lang DynamicClassLoader]
            [java.util.concurrent TimeUnit]
-           [org.apache.flink.streaming.api.windowing.time Time]))
+           [org.apache.flink.streaming.api.windowing.time Time]
+           [org.apache.flink.api.java.utils ParameterTool]))
+
+(defn parse-args
+  "Parse an array of strings into a map of keyword -> string"
+  [args]
+  (let [params
+        (if args
+          (into {} (.toMap (ParameterTool/fromArgs (or args))))
+          {})]
+    (walk/keywordize-keys params)))
 
 (defn time
   "Accepts either an instance of org.apache.flink.streaming.api.windowing.time.Time which would be returned or
