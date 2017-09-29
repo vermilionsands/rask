@@ -1,10 +1,11 @@
-(ns rask.datastream
+(ns rask.streaming
   (:refer-clojure :exclude [filter map max min print reduce])
   (:require [rask.util :as util])
   (:import [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
                                                       DataStreamSink WindowedStream]
            [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
            [org.apache.flink.api.java.functions KeySelector]
+           [org.apache.flink.core.fs FileSystem$WriteMode]
            [rask.api FlatMapFn MapFn FilterFn FoldFn ReduceFn KeySelectorFn]))
 
 (defn ^DataStream map
@@ -98,11 +99,19 @@
    An independent aggregate is kept per key.
 
    key can be a field index or name
+   stream has to be a KeyedStream or a WindowedStream
    "
-  [key ^KeyedStream stream]
+  [key ^DataStream stream]
   (cond
-    (number? key) (.sum stream (int key))
-    (string? key) (.sum stream ^String key)))
+    (instance? KeyedStream stream)
+    (cond
+      (number? key) (.sum ^KeyedStream stream (int key))
+      (string? key) (.sum ^KeyedStream stream ^String key))
+
+    (instance? WindowedStream stream)
+    (cond
+      (number? key) (.sum ^WindowedStream stream (int key))
+      (string? key) (.sum ^WindowedStream stream ^String key))))
 
 (defn ^SingleOutputStreamOperator min
   "Applies an aggregation that gives the current minimum of the data stream at the given field expression by the
@@ -156,6 +165,16 @@
   ([size slide ^KeyedStream stream]
    (.timeWindow stream (util/time size) (util/time slide))))
 
+(defn ^WindowedStream count-window
+  "Windows this KeyedStream into tumbling count windows or into sliding count if slide is provided.
+
+  size - the size of the window
+  slide - interval in number of elements"
+  ([size ^KeyedStream stream]
+   (.countWindow stream size))
+  ([size slide ^KeyedStream stream]
+   (.countWindow stream size slide)))
+
 (defn ^SingleOutputStreamOperator returns
   "Adds a type information hint about the return type of this operator.
    Use this when Flink cannot determine automatically what the produced type of a function is.
@@ -185,3 +204,16 @@
   "Writes a DataStream to the standard output stream (stderr). "
   [^DataStream stream]
   (.printToErr stream))
+
+(defn ^DataStreamSink write-as-text
+  "Writes a DataStream to the file specified by path in text format."
+  ([path ^DataStream stream]
+   (.writeAsText path stream))
+  ([path mode ^DataStream stream]
+   (if-let [mode
+            (cond
+              (= mode :no-overwrite) FileSystem$WriteMode/NO_OVERWRITE
+              (= mode :overwrite) FileSystem$WriteMode/OVERWRITE
+              :else nil)]
+     (.writeAsText path mode stream)
+     (write-as-text path stream))))
