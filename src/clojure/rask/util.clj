@@ -12,7 +12,7 @@
   [args]
   (let [params
         (if args
-          (into {} (.toMap (ParameterTool/fromArgs (or args))))
+          (into {} (.toMap (ParameterTool/fromArgs (into-array String args))))
           {})]
     (walk/keywordize-keys params)))
 

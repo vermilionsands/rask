@@ -208,12 +208,12 @@
 (defn ^DataStreamSink write-as-text
   "Writes a DataStream to the file specified by path in text format."
   ([path ^DataStream stream]
-   (.writeAsText path stream))
+   (.writeAsText stream path))
   ([path mode ^DataStream stream]
    (if-let [mode
             (cond
               (= mode :no-overwrite) FileSystem$WriteMode/NO_OVERWRITE
               (= mode :overwrite) FileSystem$WriteMode/OVERWRITE
               :else nil)]
-     (.writeAsText path mode stream)
+     (.writeAsText stream path mode)
      (write-as-text path stream))))
