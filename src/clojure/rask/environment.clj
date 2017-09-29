@@ -1,12 +1,17 @@
 (ns rask.environment
-  (:import [org.apache.flink.streaming.api.environment StreamExecutionEnvironment RemoteStreamEnvironment]
+  (:require [clojure.walk :as walk])
+  (:import [java.util Collection]
+           [org.apache.flink.streaming.api.environment StreamExecutionEnvironment RemoteStreamEnvironment]
            [org.apache.flink.streaming.api CheckpointingMode]
-           (java.util Collection)
-           (org.apache.flink.api.common.typeinfo TypeInformation)))
+           [org.apache.flink.streaming.api.datastream DataStreamSource]
+           [org.apache.flink.api.common.typeinfo TypeInformation]
+           [org.apache.flink.api.java.utils ParameterTool]))
 
+;; --------------------------------------------------------------------------------------------------------
 ;; environment
+;; --------------------------------------------------------------------------------------------------------
 
-(defn env
+(defn ^StreamExecutionEnvironment env
   "Creates an execution environment that represents the context in which the program is currently executed."
   []
   (StreamExecutionEnvironment/getExecutionEnvironment))
@@ -41,7 +46,21 @@
   ([env job-name]
    (.execute env job-name)))
 
-;; configure
+;; --------------------------------------------------------------------------------------------------------
+;; configuration
+;; --------------------------------------------------------------------------------------------------------
+
+(defn global-job-params
+  "Gets/sets global job parameters.
+  Accepts a map of keyword -> string"
+  ([env]
+   (.getGlobalJobParameters
+     (.getConfig env)))
+  ([env args]
+   (.setGlobalJobParameters
+     (.getConfig env)
+     (ParameterTool/fromMap (walk/stringify-keys args)))
+   env))
 
 (defn parallelism
   "Gets/sets the parallelism for operations executed through this environment."
@@ -101,14 +120,19 @@
   ([env path charset]
    (.readTextFile env path charset)))
 
-(defn stream-from-collection
+(defn ^DataStreamSource stream-from-collection
   ([env xs]
    (.fromCollection env ^Collection xs))
   ([env xs type-info]
    (let [type-info (if (instance? TypeInformation type-info)
                      type-info
                      (TypeInformation/of ^Class type-info))]
-     (.fromCollection env ^Collection xs ^TypeInformation type-info))))
+     (cond
+       (instance? Collection xs)
+       (.fromCollection env ^Collection xs ^TypeInformation type-info)
+
+       (.isArray (.getClass xs))
+       (.fromElements env xs)))))
 
 (defn object-stream-from-collection
   [env xs]
