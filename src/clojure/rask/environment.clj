@@ -2,10 +2,11 @@
   (:require [clojure.walk :as walk])
   (:import [java.util Collection]
            [org.apache.flink.streaming.api.environment StreamExecutionEnvironment RemoteStreamEnvironment]
-           [org.apache.flink.streaming.api CheckpointingMode]
+           [org.apache.flink.streaming.api CheckpointingMode TimeCharacteristic]
            [org.apache.flink.streaming.api.datastream DataStreamSource]
            [org.apache.flink.api.common.typeinfo TypeInformation]
-           [org.apache.flink.api.java.utils ParameterTool]))
+           [org.apache.flink.api.java.utils ParameterTool]
+           [rask.api SourceFn]))
 
 ;; --------------------------------------------------------------------------------------------------------
 ;; environment
@@ -35,6 +36,10 @@
   "Creates a LocalStreamEnvironment for local program execution that also starts the web monitoring UI."
   [conf]
   (StreamExecutionEnvironment/createLocalEnvironmentWithWebUI conf))
+
+;; --------------------------------------------------------------------------------------------------------
+;; execution
+;; --------------------------------------------------------------------------------------------------------
 
 (defn execute
   "Triggers the program execution. The environment will execute all parts of the program that have resulted
@@ -89,7 +94,7 @@
 (defn disable-chaining [env]
   (.disableOperatorChaining env))
 
-(defn checkpointing-mode
+(defn- checkpointing-mode
   [mode]
   (if (keyword? mode)
     (mode {:exactly-once  CheckpointingMode/EXACTLY_ONCE
@@ -104,7 +109,40 @@
   ([env interval mode]
    (.enableCheckpointing env interval (checkpointing-mode mode))))
 
-;; datastreams
+(defn- time-event
+  [event]
+  (if (keyword? event)
+    (event {:event      TimeCharacteristic/EventTime
+            :ingestion  TimeCharacteristic/IngestionTime
+            :processing TimeCharacteristic/ProcessingTime})
+    event))
+
+(defn time-characteristic
+  "Gets/sets the stream time characteristic.
+
+  event should be a TimeCharacteristic or one of :event, :ingestion, :processing."
+  ([env]
+   (.getStreamTimeCharacteristic env))
+  ([env event]
+   (.setStreamTimeCharacteristic env (time-event event))
+   env))
+
+;; --------------------------------------------------------------------------------------------------------
+;; streams
+;; --------------------------------------------------------------------------------------------------------
+
+(defn add-source
+  "Adds a Data Source to the streaming topology, as defined by function f.
+
+  f should be a function that accepts two arguments: SourceContext context and a Volatile stop?.
+  It would be run inside a run() method of org.apache.flink.streaming.api.functions.source.SourceFunction
+  It can run for as long as necessary, but should react to stop? changing it's value to true after cancel() is called
+  on an enclosing SourceFunction.
+
+  context can be used to return data, using collect and collectWithTimestamp methods.
+  stop? would be initialized to false, and would be set to true when the source is cancelled"
+  [env f]
+  (.addSource env (SourceFn. f)))
 
 (defn string-stream-from-socket
   ([env host port]
@@ -120,7 +158,7 @@
   ([env path charset]
    (.readTextFile env path charset)))
 
-(defn ^DataStreamSource stream-from-collection
+(defn stream-from-collection
   ([env xs]
    (.fromCollection env ^Collection xs))
   ([env xs type-info]
