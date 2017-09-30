@@ -1,4 +1,4 @@
-(defproject rask "0.1.0-SNAPSHOT"
+(defproject vermilionsands/rask "0.1.0-SNAPSHOT"
   :description "A Clojure wrapper for Flink"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
