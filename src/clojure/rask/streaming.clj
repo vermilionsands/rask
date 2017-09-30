@@ -1,11 +1,12 @@
 (ns rask.streaming
   (:refer-clojure :exclude [filter map max min print reduce])
   (:require [rask.util :as util])
-  (:import [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
-                                                      DataStreamSink WindowedStream]
-           [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
+  (:import [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
            [org.apache.flink.api.java.functions KeySelector]
            [org.apache.flink.core.fs FileSystem$WriteMode]
+           [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
+                                                      DataStreamSink WindowedStream]
+           [org.apache.flink.streaming.api.windowing.assigners WindowAssigner]
            [rask.api FlatMapFn MapFn FilterFn FoldFn ReduceFn KeySelectorFn]))
 
 (defn ^DataStream map
@@ -154,6 +155,13 @@
    (cond
      (number? key) (.maxBy stream (int key) ^boolean first?)
      (string? key) (.maxBy stream ^String key ^boolean first?))))
+
+(defn ^WindowedStream window
+  "Windows this data stream to a WindowedStream, which evaluates windows over a key grouped stream.
+
+  Elements are put into windows by a assigner. The grouping of elements is done both by key and by window."
+  ([^WindowAssigner assigner ^KeyedStream stream]
+   (.window stream assigner)))
 
 (defn ^WindowedStream time-window
   "Windows this KeyedStream into tumbling time windows.
