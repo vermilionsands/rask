@@ -75,8 +75,11 @@
     (fn? key)
     (.keyBy stream ^KeySelector (KeySelectorFn. key))
 
+    ;; TODO fixme
+    ;; fails right now
     (instance? KeySelector key)
-    (.keyBy stream ^KeySelector key)
+    ;; (.keyBy stream ^KeySelector key)
+    (throw (UnsupportedOperationException. "Not implemented yet!"))
 
     (sequential? key)
     (let [[first-key] key]
