@@ -46,6 +46,11 @@
            (format "Cannot create Tuple with more than 25 arguments. Too many arguments: %s."
                    (+ (count xs) 3))))))))
 
+(defn into-tuple
+  "Creates a tuple containing the contents of coll."
+  [coll]
+  (apply tuple coll))
+
 (defn nth
   "Gets the field at the specified position.
 
