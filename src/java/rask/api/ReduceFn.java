@@ -3,7 +3,7 @@ package rask.api;
 import clojure.lang.IFn;
 import org.apache.flink.api.common.functions.ReduceFunction;
 
-public class ReduceFn extends RequiringFunction implements ReduceFunction {
+public class ReduceFn extends RaskFunction implements ReduceFunction {
 
   public ReduceFn(IFn fn) {
     super(fn);

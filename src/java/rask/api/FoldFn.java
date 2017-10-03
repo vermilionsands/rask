@@ -3,7 +3,7 @@ package rask.api;
 import clojure.lang.IFn;
 
 @SuppressWarnings("deprecation")
-public class FoldFn extends RequiringFunction implements org.apache.flink.api.common.functions.FoldFunction {
+public class FoldFn extends RaskFunction implements org.apache.flink.api.common.functions.FoldFunction {
 
   public FoldFn(IFn fn) {
     super(fn);

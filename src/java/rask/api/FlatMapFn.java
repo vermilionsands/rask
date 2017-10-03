@@ -7,7 +7,7 @@ import org.apache.flink.util.Collector;
 
 import java.util.Iterator;
 
-public class FlatMapFn extends RequiringFunction implements FlatMapFunction {
+public class FlatMapFn extends RaskFunction implements FlatMapFunction {
 
   public FlatMapFn(IFn fn) {
     super(fn);

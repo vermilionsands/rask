@@ -4,7 +4,7 @@ import clojure.lang.IFn;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import rask.util.SerializableVolatile;
 
-public class SourceFn extends RequiringFunction implements SourceFunction {
+public class SourceFn extends RaskFunction implements SourceFunction {
 
   private SerializableVolatile stopHandle = new SerializableVolatile(false);
 
