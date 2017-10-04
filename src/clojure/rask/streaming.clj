@@ -7,7 +7,8 @@
            [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
                                                       DataStreamSink WindowedStream]
            [org.apache.flink.streaming.api.windowing.assigners WindowAssigner]
-           [rask.api FlatMapFn MapFn FilterFn FoldFn ReduceFn KeySelectorFn]))
+           [rask.api FlatMapFn MapFn FilterFn FoldFn ReduceFn KeySelectorFn]
+           [org.apache.flink.streaming.api.functions AssignerWithPeriodicWatermarks AssignerWithPunctuatedWatermarks]))
 
 (defn ^DataStream map
   "Takes one element and produces one element.
@@ -68,18 +69,18 @@
    * getter methods with parentheses of the stream underlying type
 
    or
-   * a one arg function that returns a key
-   * a KeySelector."
+   * a one arg function that returns a key"
   [key ^DataStream stream]
   (cond
-    (fn? key)
-    (.keyBy stream ^KeySelector (KeySelectorFn. key))
-
     ;; TODO fixme
     ;; fails right now
-    (instance? KeySelector key)
-    ;; (.keyBy stream ^KeySelector key)
+    (fn? key)
+    ;(.keyBy stream ^KeySelector (KeySelectorFn. key))
     (throw (UnsupportedOperationException. "Not implemented yet!"))
+
+    ;; use interop instead
+    ;; (instance? KeySelector key)
+    ;; (.keyBy stream ^KeySelector key)
 
     (sequential? key)
     (let [[first-key] key]
@@ -120,10 +121,17 @@
 (defn ^SingleOutputStreamOperator min
   "Applies an aggregation that gives the current minimum of the data stream at the given field expression by the
   given key. An independent aggregate is kept per key."
-  [key ^KeyedStream stream]
+  [key ^DataStream stream]
   (cond
-    (number? key) (.min stream (int key))
-    (string? key) (.min stream ^String key)))
+    (instance? KeyedStream stream)
+    (cond
+      (number? key) (.min ^KeyedStream stream (int key))
+      (string? key) (.min ^KeyedStream stream ^String key))
+
+    (instance? WindowedStream stream)
+    (cond
+      (number? key) (.min ^WindowedStream stream (int key))
+      (string? key) (.min ^WindowedStream stream ^String key))))
 
 (defn ^SingleOutputStreamOperator min-by
   "Applies an aggregation that gives the current element with the minimum value at the given position by the
@@ -131,20 +139,34 @@
 
   If more elements have the minimum value at the given position, the operator returns the first one by default
   unless first? is set to false."
-  ([key ^KeyedStream stream]
+  ([key ^DataStream stream]
    (min-by key true stream))
-  ([key first? ^KeyedStream stream]
+  ([key first? ^DataStream stream]
    (cond
-     (number? key) (.minBy stream (int key) ^boolean first?)
-     (string? key) (.minBy stream ^String key ^boolean first?))))
+     (instance? KeyedStream stream)
+     (cond
+       (number? key) (.minBy ^KeyedStream stream (int key) ^boolean first?)
+       (string? key) (.minBy ^KeyedStream stream ^String key ^boolean first?))
+
+     (instance? WindowedStream stream)
+     (cond
+       (number? key) (.minBy ^WindowedStream stream (int key) ^boolean first?)
+       (string? key) (.minBy ^WindowedStream stream ^String key ^boolean first?)))))
 
 (defn ^SingleOutputStreamOperator max
   "Applies an aggregation that gives the current maximum of the data stream at the given field expression by the
   given key. An independent aggregate is kept per key."
-  [key ^KeyedStream stream]
+  [key ^DataStream stream]
   (cond
-    (number? key) (.max stream (int key))
-    (string? key) (.max stream ^String key)))
+    (instance? KeyedStream stream)
+    (cond
+      (number? key) (.max ^KeyedStream stream (int key))
+      (string? key) (.max ^KeyedStream stream ^String key))
+
+    (instance? WindowedStream stream)
+    (cond
+      (number? key) (.max ^WindowedStream stream (int key))
+      (string? key) (.max ^WindowedStream stream ^String key))))
 
 (defn ^SingleOutputStreamOperator max-by
   "Applies an aggregation that gives the current element with the maximum value at the given position by the
@@ -152,12 +174,35 @@
 
   If more elements have the minimum value at the given position, the operator returns the first one by default
   unless first? is set to false."
-  ([key ^KeyedStream stream]
+  ([key ^DataStream stream]
    (max-by key true stream))
-  ([key first? ^KeyedStream stream]
+  ([key first? ^DataStream stream]
    (cond
-     (number? key) (.maxBy stream (int key) ^boolean first?)
-     (string? key) (.maxBy stream ^String key ^boolean first?))))
+     (instance? KeyedStream stream)
+     (cond
+       (number? key) (.maxBy ^KeyedStream stream (int key) ^boolean first?)
+       (string? key) (.maxBy ^KeyedStream stream ^String key ^boolean first?))
+
+     (instance? WindowedStream stream)
+     (cond
+       (number? key) (.maxBy ^WindowedStream stream (int key) ^boolean first?)
+       (string? key) (.maxBy ^WindowedStream stream ^String key ^boolean first?)))))
+
+(defn ^SingleOutputStreamOperator timestamps-and-watermarks
+  "Assigns timestamps to the elements in the data stream and, depending on the assigner:
+
+  * periodically creates watermarks to signal event time progress
+  * creates watermarks to signal event time progress based on the elements themselves"
+  ([assigner ^DataStream stream]
+   (cond
+     (instance? AssignerWithPeriodicWatermarks assigner)
+     (.assignTimestampsAndWatermarks stream ^AssignerWithPeriodicWatermarks assigner)
+
+     (instance? AssignerWithPunctuatedWatermarks assigner)
+     (.assignTimestampsAndWatermarks stream ^AssignerWithPunctuatedWatermarks assigner)
+
+     :else
+     (throw (IllegalArgumentException. (str "Unsupported assigner: " assigner))))))
 
 (defn ^WindowedStream window
   "Windows this data stream to a WindowedStream, which evaluates windows over a key grouped stream.
@@ -185,6 +230,20 @@
    (.countWindow stream size))
   ([size slide ^KeyedStream stream]
    (.countWindow stream size slide)))
+
+(defn ^WindowedStream evictor
+  "Sets the Evictor that should be used to evict elements from a window before emission.
+
+  evictor should be a instance of org.apache.flink.streaming.api.windowing.evictors.Evictor."
+  [evictor ^WindowedStream stream]
+  (.evictor stream evictor))
+
+(defn trigger
+  "Sets the Trigger that should be used to trigger window emission.
+
+  trigger should be an instance of org.apache.flink.streaming.api.windowing.triggers.Trigger."
+  [trigger ^WindowedStream stream]
+  (.trigger stream trigger))
 
 (defn ^SingleOutputStreamOperator returns
   "Adds a type information hint about the return type of this operator.

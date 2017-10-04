@@ -5,7 +5,8 @@
   (:import [clojure.lang DynamicClassLoader]
            [java.util.concurrent TimeUnit]
            [org.apache.flink.streaming.api.windowing.time Time]
-           [org.apache.flink.api.java.utils ParameterTool]))
+           [org.apache.flink.api.java.utils ParameterTool]
+           [rask.api.timestamps AscendingTimestampFn BoundedOutOfOrdnessFn]))
 
 (defn parse-args
   "Parse an array of strings into a map of keyword -> string"
@@ -41,6 +42,21 @@
     :minutes TimeUnit/MINUTES
     :hours TimeUnit/HOURS
     :days TimeUnit/DAYS))
+
+(defn ascending-assigner
+  "Creates an instance of AscendingTimestampExtractor that will use function f to extact timestamps.
+
+  f should take one argument and return long."
+  [f]
+  (AscendingTimestampFn. f))
+
+(defn out-of-ordness-assigner
+  "Creates an instance of BoundedOutOfOrdernessTimestampExtractor that will use function f to extact timestamps.
+
+  f should take one argument and return long.
+  max-time should be an instance of org.apache.flink.streaming.api.windowing.time.Time or long (for milliseconds)."
+  [f max-time]
+  (BoundedOutOfOrdnessFn. f (time max-time)))
 
 (defmacro type-hint
   "Expands to code that defines a class implementing org.apache.flink.api.common.typeinfo.TypeHint<T>

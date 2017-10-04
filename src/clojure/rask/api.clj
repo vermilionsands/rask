@@ -17,7 +17,7 @@
     (filter symbol?)
     (set)))
 
-(defn bindings [local-bindings used-symbols-set]
+(defn- bindings [local-bindings used-symbols-set]
   (->>
     (filter
       (fn [^Compiler$LocalBinding b]
