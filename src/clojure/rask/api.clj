@@ -1,7 +1,16 @@
 (ns rask.api
-  (:import [clojure.lang Compiler$LocalBinding]))
+  (:import [clojure.lang Compiler$LocalBinding]
+           [rask.util SerializableFn]))
 
 ;; there should be a simpler way to do this...
+
+(defn make-serializable
+  ([f]
+   (SerializableFn. f))
+  ([fn-name form]
+   (SerializableFn. fn-name form))
+  ([f fn-name form]
+   (SerializableFn. f fn-name form)))
 
 (defn- generate-name [namespace fn-name line column]
   (let [ns-string (name namespace)]
@@ -38,16 +47,15 @@
         fn-name (-> body first meta ::name)
         fn-name (generate-name namespace fn-name line column)
         local-bindings (bindings (vals &env) (used-symbols (rest body)))]
-    `(do
-       (with-meta
-         (fn ~@body)
-         {::name '~fn-name
-          ::form (list 'let ~(vec local-bindings) '~form)}))))
+    `(make-serializable
+       (fn ~@body)
+       '~fn-name
+       (list 'let ~(vec local-bindings) '~form))))
 
 (defmacro defraskfn
   "Like defn, but tries to store it's form with local bindings in meta."
   [name & body]
   (let [[x & xs] body
-        x (with-meta x {::name name})]
+        x (with-meta x {:rask/name name})]
     `(def ~name
        (raskfn ~x ~@xs))))

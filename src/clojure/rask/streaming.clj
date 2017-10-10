@@ -2,20 +2,23 @@
   (:refer-clojure :exclude [filter map max min print reduce])
   (:require [rask.util :as util])
   (:import [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
-           [org.apache.flink.api.java.functions KeySelector]
            [org.apache.flink.core.fs FileSystem$WriteMode]
            [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
                                                       DataStreamSink WindowedStream]
            [org.apache.flink.streaming.api.windowing.assigners WindowAssigner]
-           [rask.api FlatMapFn MapFn FilterFn FoldFn ReduceFn KeySelectorFn]
-           [org.apache.flink.streaming.api.functions AssignerWithPeriodicWatermarks AssignerWithPunctuatedWatermarks]))
+           [org.apache.flink.streaming.api.functions AssignerWithPeriodicWatermarks AssignerWithPunctuatedWatermarks]
+           [org.apache.flink.api.common.functions FlatMapFunction MapFunction FilterFunction ReduceFunction FoldFunction]
+           [org.apache.flink.util Collector]))
 
 (defn ^DataStream map
   "Takes one element and produces one element.
 
   Accepts a one arg function"
   [f ^DataStream stream]
-  (.map stream (MapFn. f)))
+  (let [f (reify MapFunction
+            (map [_ x]
+              (f x)))]
+    (.map stream f)))
 
 (defn ^DataStream flat-map
   "Takes one element and produces zero, one, or more elements.
@@ -23,14 +26,21 @@
   Accepts a function f that should take one argument and return a sequence of results
   that would be added to collector."
   [f ^DataStream stream]
-  (.flatMap stream (FlatMapFn. f)))
+  (let [f (reify FlatMapFunction
+            (^void flatMap [_ x ^Collector acc]
+              (doseq [y (f x)]
+                (.collect acc y))))]
+    (.flatMap stream f)))
 
 (defn ^DataStream filter
   "Evaluates a predicate for each element and retains those for which the predicate returns true.
 
   Accepts a one arg function that would be coerced to boolean."
   [f ^DataStream stream]
-  (.filter stream (FilterFn. f)))
+  (let [f (reify FilterFunction
+            (filter [_ x]
+              (boolean (f x))))]
+    (.filter stream f)))
 
 (defn ^DataStream reduce
   "For KeyedStream:
@@ -42,7 +52,9 @@
 
   Accepts a function f that takes two arguments. If val is supplied it would be used as an initial valiue."
   ([f ^DataStream stream]
-   (let [f (ReduceFn. f)]
+   (let [f (reify ReduceFunction
+             (reduce [_ acc x]
+               (f acc x)))]
      (cond
        (instance? KeyedStream stream) (.reduce ^KeyedStream stream f)
        (instance? WindowedStream stream) (.reduce ^WindowedStream stream f)
@@ -50,7 +62,9 @@
                (IllegalArgumentException.
                  (format "Unsupported stream type: %s" (class stream)))))))
   ([f val ^DataStream stream]
-   (let [f (FoldFn. f)]
+   (let [f (reify FoldFunction
+             (fold [_ acc x]
+               (f acc x)))]
      (cond
        (instance? KeyedStream stream) (.fold val ^KeyedStream stream f)
        (instance? WindowedStream stream) (.fold val ^WindowedStream stream f)

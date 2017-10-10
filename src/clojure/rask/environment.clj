@@ -4,9 +4,10 @@
            [org.apache.flink.streaming.api.environment StreamExecutionEnvironment RemoteStreamEnvironment]
            [org.apache.flink.streaming.api CheckpointingMode TimeCharacteristic]
            [org.apache.flink.streaming.api.datastream DataStreamSource]
+           [org.apache.flink.streaming.api.functions.source SourceFunction]
            [org.apache.flink.api.common.typeinfo TypeInformation]
            [org.apache.flink.api.java.utils ParameterTool]
-           [rask.api SourceFn]))
+           [rask.util SerializableVolatile]))
 
 ;; --------------------------------------------------------------------------------------------------------
 ;; environment
@@ -142,7 +143,12 @@
   context can be used to return data, using collect and collectWithTimestamp methods.
   stop? would be initialized to false, and would be set to true when the source is cancelled"
   [env f]
-  (.addSource env (SourceFn. f)))
+  (let [stop? (SerializableVolatile. false)
+        f (reify SourceFunction
+            (run [_ source-ctx]
+              (f source-ctx stop?))
+            (cancel [_] (.reset stop? true)))]
+    (.addSource env f)))
 
 (defn string-stream-from-socket
   ([env host port]
