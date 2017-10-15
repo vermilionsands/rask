@@ -7,7 +7,8 @@
            [org.apache.flink.streaming.api.functions.source SourceFunction]
            [org.apache.flink.api.common.typeinfo TypeInformation]
            [org.apache.flink.api.java.utils ParameterTool]
-           [rask.util SerializableVolatile]))
+           [rask.util SerializableVolatile]
+           [rask.api.functions.source RichParallelSourceFn]))
 
 ;; --------------------------------------------------------------------------------------------------------
 ;; environment
@@ -132,6 +133,7 @@
 ;; streams
 ;; --------------------------------------------------------------------------------------------------------
 
+;; todo - add variant with name, typeinformation
 (defn add-source
   "Adds a Data Source to the streaming topology, as defined by function f.
 
@@ -149,6 +151,18 @@
               (f source-ctx stop?))
             (cancel [_] (.reset stop? true)))]
     (.addSource env f)))
+
+(defn add-parallel-source
+  [env f]
+  ;; would not work, since RichParallelSourceFunction is abstract && proxy would fail in 1.9 (Serialization)
+  ;; gen-class?
+  ;; (let [stop? (SerializableVolatile. false)
+  ;;       f (reify RichParallelSourceFunction
+  ;;           (run [_ source-ctx]
+  ;;             (f source-ctx stop?)
+  ;;           (cancel [_] (.reset stop? true))
+  ;;  (.addSource env f)])
+  (.addSource env (RichParallelSourceFn. f)))
 
 (defn string-stream-from-socket
   ([env host port]
