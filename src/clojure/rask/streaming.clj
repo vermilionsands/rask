@@ -8,7 +8,9 @@
            [org.apache.flink.streaming.api.windowing.assigners WindowAssigner]
            [org.apache.flink.streaming.api.functions AssignerWithPeriodicWatermarks AssignerWithPunctuatedWatermarks]
            [org.apache.flink.api.common.functions FlatMapFunction MapFunction FilterFunction ReduceFunction FoldFunction]
-           [org.apache.flink.util Collector]))
+           [org.apache.flink.util Collector]
+           [org.apache.flink.streaming.api.functions.sink SinkFunction]
+           [org.apache.flink.api.java.functions KeySelector]))
 
 (defn ^DataStream map
   "Takes one element and produces one element.
@@ -50,7 +52,9 @@
   For WindowedStream:
   Applies a functional reduce function to the window and returns the reduced value.
 
-  Accepts a function f that takes two arguments. If val is supplied it would be used as an initial valiue."
+  Accepts a function f that takes two arguments - accumulator and value.
+
+  If val is supplied it would be used as an initial valiue."
   ([f ^DataStream stream]
    (let [f (reify ReduceFunction
              (reduce [_ acc x]
@@ -89,12 +93,15 @@
     ;; TODO fixme
     ;; fails right now
     (fn? key)
-    ;(.keyBy stream ^KeySelector (KeySelectorFn. key))
-    (throw (UnsupportedOperationException. "Not implemented yet!"))
+    (let [f (reify KeySelector
+              (getKey [_ x]
+                (key x)))]
+      ;; TODO correct add type-hint
+      (KeyedStream. stream f (.getTypeInfo ^TypeHint (util/type-hint Object))))
 
     ;; use interop instead
-    ;; (instance? KeySelector key)
-    ;; (.keyBy stream ^KeySelector key)
+    (instance? KeySelector key)
+    (.keyBy stream ^KeySelector key)
 
     (sequential? key)
     (let [[first-key] key]
@@ -278,6 +285,23 @@
   n must be higher than zero."
   [n ^DataStreamSink stream]
   (.setParallelism stream n))
+
+;; --------------------------------------------------------------------------------------------------------
+;; sinks
+;; --------------------------------------------------------------------------------------------------------
+
+(defn ^DataStreamSink add-sink
+  "Adds the given sink to this DataStream. Only streams with sinks added will be executed once the
+  (rask.environment/execute env) function is called.
+
+  Accepts a SinkFunction implementation or a one-arg function that would be wrapped in SinkFunction."
+  [f ^DataStream stream]
+  (if (instance? SinkFunction f)
+    (.addSink stream f)
+    (let [f (reify SinkFunction
+              (invoke [_ x]
+                (f x)))]
+      (.addSink stream f))))
 
 (defn ^DataStreamSink print
   "Writes a DataStream to the standard output stream (stdout)."
