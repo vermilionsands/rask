@@ -7,10 +7,11 @@
                                                       DataStreamSink WindowedStream]
            [org.apache.flink.streaming.api.windowing.assigners WindowAssigner]
            [org.apache.flink.streaming.api.functions AssignerWithPeriodicWatermarks AssignerWithPunctuatedWatermarks]
-           [org.apache.flink.api.common.functions FlatMapFunction MapFunction FilterFunction ReduceFunction FoldFunction]
+           [org.apache.flink.api.common.functions FlatMapFunction MapFunction FilterFunction ReduceFunction FoldFunction JoinFunction]
            [org.apache.flink.util Collector]
            [org.apache.flink.streaming.api.functions.sink SinkFunction]
-           [org.apache.flink.api.java.functions KeySelector]))
+           [org.apache.flink.api.java.functions KeySelector]
+           [org.apache.flink.api.java.typeutils ResultTypeQueryable]))
 
 (defn ^DataStream map
   "Takes one element and produces one element.
@@ -76,6 +77,35 @@
                (IllegalArgumentException.
                  (format "Unsupported stream type: %s" (class stream))))))))
 
+(defn join
+  [^DataStream stream-1 ^DataStream stream-2 left-key right-key window join-fn]
+  (let [k1 (reify
+             KeySelector
+             (getKey [_ x]
+               (left-key x))
+             ResultTypeQueryable
+             (getProducedType [_] (.getTypeInfo ^TypeHint (util/type-hint Object))))
+        k2 (reify
+             KeySelector
+             (getKey [_ x]
+               (right-key x))
+             ResultTypeQueryable
+             (getProducedType [_] (.getTypeInfo ^TypeHint (util/type-hint Object))))
+        f (reify
+            JoinFunction
+            (join [_ x y]
+              (join-fn x y))
+            ResultTypeQueryable
+            (getProducedType [_] (.getTypeInfo ^TypeHint (util/type-hint Object))))]
+    (.apply
+      (.window
+        (.equalTo
+          (.where
+            (.join stream-1 stream-2) ^KeyedStream k1)
+          ^KeySelector k2)
+        window)
+      ^JoinFunction f)))
+
 (defn ^KeyedStream key-by
   "Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
 
@@ -90,8 +120,6 @@
    * a one arg function that returns a key"
   [key ^DataStream stream]
   (cond
-    ;; TODO fixme
-    ;; fails right now
     (fn? key)
     (let [f (reify KeySelector
               (getKey [_ x]

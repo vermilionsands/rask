@@ -1,6 +1,7 @@
 (ns rask.api
   (:import [clojure.lang Compiler$LocalBinding]
-           [rask.util SerializableFn]))
+           [rask.util SerializableFn]
+           [java.util.concurrent.atomic AtomicReference]))
 
 ;; there should be a simpler way to do this...
 
@@ -59,3 +60,18 @@
         x (with-meta x {:rask/name name})]
     `(def ~name
        (raskfn ~x ~@xs))))
+
+(defn iterator
+  [state next & [has-next]]
+  (let [state (AtomicReference. state)]
+    (reify
+      java.io.Serializable
+      java.util.Iterator
+      (hasNext [_]
+        (locking state
+          ((or has-next (constantly true)) (.get state))))
+      (next [_]
+        (locking state
+          (let [[x & state'] (next (.get state))]
+            (.set state state')
+            x))))))

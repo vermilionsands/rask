@@ -1,6 +1,6 @@
 (ns rask.environment
   (:require [clojure.walk :as walk])
-  (:import [java.util Collection]
+  (:import [java.util Collection Iterator]
            [org.apache.flink.streaming.api.environment StreamExecutionEnvironment RemoteStreamEnvironment]
            [org.apache.flink.streaming.api CheckpointingMode TimeCharacteristic]
            [org.apache.flink.streaming.api.datastream DataStreamSource]
@@ -48,10 +48,8 @@
   in a \"sink\" operation. Sink operations are for example printing results or forwarding them to a message queue.
 
   The program execution will be logged and displayed with a generated default name or passed job-name."
-  ([env]
-   (.execute env))
-  ([env job-name]
-   (.execute env job-name)))
+  ([env & [job-name]]
+   (.execute env (or job-name "Clojure Flink Streaming Job"))))
 
 ;; --------------------------------------------------------------------------------------------------------
 ;; configuration
@@ -180,12 +178,23 @@
 
 (defn stream-from-collection
   ([env xs]
-   (.fromCollection env ^Collection xs))
+   (cond
+     (instance? Iterator xs)
+     (.fromCollection env ^Iterator xs (TypeInformation/of ^Class Object))
+
+     (instance? Collection xs)
+     (.fromCollection env ^Collection xs)
+
+     (.isArray (.getClass xs))
+     (.fromElements env xs)))
   ([env xs type-info]
    (let [type-info (if (instance? TypeInformation type-info)
                      type-info
                      (TypeInformation/of ^Class type-info))]
      (cond
+       (instance? Iterator xs)
+       (.fromCollection env ^Iterator xs ^TypeInformation type-info)
+
        (instance? Collection xs)
        (.fromCollection env ^Collection xs ^TypeInformation type-info)
 
@@ -194,4 +203,4 @@
 
 (defn object-stream-from-collection
   [env xs]
-  (.fromCollection env xs (TypeInformation/of ^Class Object)))
+  (stream-from-collection env xs (TypeInformation/of ^Class Object)))
