@@ -1,19 +1,20 @@
 (ns rask.streaming
-  (:refer-clojure :exclude [filter map max min print reduce])
+  (:refer-clojure :exclude [filter iterate map max min print reduce])
   (:require [rask.util :as util])
   (:import [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
            [org.apache.flink.core.fs FileSystem$WriteMode]
            [org.apache.flink.streaming.api.datastream DataStream KeyedStream SingleOutputStreamOperator
-                                                      DataStreamSink WindowedStream]
+                                                      DataStreamSink WindowedStream SplitStream IterativeStream]
            [org.apache.flink.streaming.api.windowing.assigners WindowAssigner]
            [org.apache.flink.streaming.api.functions AssignerWithPeriodicWatermarks AssignerWithPunctuatedWatermarks]
            [org.apache.flink.api.common.functions FlatMapFunction MapFunction FilterFunction ReduceFunction FoldFunction JoinFunction]
            [org.apache.flink.util Collector]
            [org.apache.flink.streaming.api.functions.sink SinkFunction]
            [org.apache.flink.api.java.functions KeySelector]
-           [org.apache.flink.api.java.typeutils ResultTypeQueryable]))
+           [org.apache.flink.api.java.typeutils ResultTypeQueryable]
+           [org.apache.flink.streaming.api.collector.selector OutputSelector]))
 
-(defn ^DataStream map
+(defn ^SingleOutputStreamOperator map
   "Takes one element and produces one element.
 
   Accepts a one arg function"
@@ -105,6 +106,32 @@
           ^KeySelector k2)
         window)
       ^JoinFunction f)))
+
+(defn ^SplitStream split
+  "Function used for directing tuples to specific named outputs using a selector f.
+  Calling this function creates a new SplitStream.
+
+  f should be a one arg function that returns a Iterable"
+  [f ^DataStream stream]
+  (let [f (reify OutputSelector
+            (select [_ x]
+              (f x)))]
+    (.split stream f)))
+
+;; todo - accept multiple names
+;; reverse order!!!
+(defn ^DataStream select
+  [s ^SplitStream stream]
+  (.select stream (into-array String [s])))
+
+(defn ^IterativeStream iterate
+  ([stream]
+   (.iterate stream))
+  ([timeout ^DataStream stream]
+   (.iterate stream timeout)))
+
+(defn ^DataStream close-with [^DataStream feedback-stream ^IterativeStream stream]
+  (.closeWith stream feedback-stream))
 
 (defn ^KeyedStream key-by
   "Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.

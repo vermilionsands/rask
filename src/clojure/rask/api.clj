@@ -39,6 +39,7 @@
          (.sym b)]))
     vec))
 
+;;todo add bindings without let
 (defmacro raskfn
   "Like defn, but tries to store it's form with local bindings in meta."
   [& body]
@@ -61,6 +62,7 @@
     `(def ~name
        (raskfn ~x ~@xs))))
 
+;;todo remove locking
 (defn iterator
   [state next & [has-next]]
   (let [state (AtomicReference. state)]
