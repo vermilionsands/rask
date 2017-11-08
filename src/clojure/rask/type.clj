@@ -9,11 +9,17 @@
 
 (defn type-info
   "Creates a TypeInformation instance for a given class and optional generic types.
+  If generic types are also generic, enclose them in vector and provide their generic types.
 
   Samples:
      (type-info List Integer)
+     => TypeInformation<List<Integer>>
+
      (type-info Map String Long)
-     (type-info Map String [List Integer])"
+     => TypeInformation<Map<String, Long>>
+
+     (type-info Map String [List Integer])
+     => TypeInformation<Map<String, List<Integer>>"
   ^TypeInformation [c & generics]
   (cond
     (isa? c Tuple)
