@@ -1,9 +1,7 @@
 (ns rask.util
   (:refer-clojure :exclude [time])
-  (:require [clojure.walk :as walk]
-            [rask.util.genclass :as genclass])
-  (:import [clojure.lang DynamicClassLoader]
-           [java.util.concurrent TimeUnit]
+  (:require [clojure.walk :as walk])
+  (:import [java.util.concurrent TimeUnit]
            [org.apache.flink.streaming.api.windowing.time Time]
            [org.apache.flink.api.java.utils ParameterTool]
            [rask.api.timestamps AscendingTimestampFn BoundedOutOfOrdnessFn]))
@@ -57,35 +55,3 @@
   max-time should be an instance of org.apache.flink.streaming.api.windowing.time.Time or long (for milliseconds)."
   [f max-time]
   (BoundedOutOfOrdnessFn. f (time max-time)))
-
-(defmacro type-hint
-  "Expands to code that defines a class implementing org.apache.flink.api.common.typeinfo.TypeHint<T>
-  and returns an instance of this class
-
-  c - class T
-  generic-types - additional classes that would be applied to type as generic types.
-                  If additional classes are also generic, enclose them in vector.
-
-  For example:
-  (type-hint java.util.List String)
-  -> TypeHint<java.util.List<String>>
-  (type-hint org.apache.flink.api.java.tuple.Tuple2 String Long)
-  -> Tuple2<String, Long>
-  (type-hint java.util.HashMap Integer [java.util.List String])
-  -> TypeHint<java.util.HashMap<Integer,java.util.List<String>>"
-  [c & generic-types]
-  (let [all-types (if (seq generic-types)
-                    [(vec (concat [c] generic-types))]
-                    [c])
-        ns-part (namespace-munge *ns*)
-        classname (symbol (str ns-part "." (gensym "TypeHint")))
-        extends
-        (with-meta
-          'org.apache.flink.api.common.typeinfo.TypeHint
-          {:types all-types})
-        options-map {:name classname :extends extends}
-        [cname bytecode] (genclass/generate-class options-map)]
-    (when *compile-files*
-      (Compiler/writeClassFile cname bytecode))
-    (.defineClass ^DynamicClassLoader @Compiler/LOADER (str (:name options-map)) bytecode nil)
-    `(new ~classname)))
