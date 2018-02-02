@@ -10,7 +10,7 @@ import java.io.Serializable;
 public class SerializableFn implements IFn, Fn, IObj, Serializable {
 
   private static final String CORE_NS = "clojure.core";
-  private static final String RASK_NS = "rask";
+  private static final String RASK_NS = "rask.api";
   private static final Var REQUIRE = RT.var(CORE_NS, "require");
   private static final Var FIND_NS = RT.var(CORE_NS, "find-ns");
   private static final Keyword FN_NAME_KEY = Keyword.intern(RASK_NS, "name");
@@ -45,14 +45,10 @@ public class SerializableFn implements IFn, Fn, IObj, Serializable {
     return fnImpl;
   }
 
-  public SerializableFn(IFn fn, Symbol sym, PersistentList form) {
+  private SerializableFn(IFn fn, Symbol sym, PersistentList form) {
     this.sym = sym;
     this.form = form;
     this.impl = fn;
-  }
-
-  public SerializableFn(Symbol sym, PersistentList form) {
-    this(initFn(sym, form), sym, form);
   }
 
   public SerializableFn(IFn fn) {

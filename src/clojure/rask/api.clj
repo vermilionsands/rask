@@ -3,17 +3,11 @@
            [rask.util SerializableFn]
            [java.util.concurrent.atomic AtomicReference]))
 
-;; there should be a simpler way to do this...
+(defn- serializable-fn
+  [f]
+  (SerializableFn. f))
 
-(defn make-serializable
-  ([f]
-   (SerializableFn. f))
-  ([fn-name form]
-   (SerializableFn. fn-name form))
-  ([f fn-name form]
-   (SerializableFn. f fn-name form)))
-
-(defn- generate-name [namespace fn-name line column]
+(defn- generate-name [namespace line column fn-name]
   (let [ns-string (name namespace)]
     (if fn-name
       (symbol ns-string (name fn-name))
@@ -39,30 +33,33 @@
          (.sym b)]))
     vec))
 
-;;todo add bindings without let
-(defmacro raskfn
-  "Like defn, but tries to store it's form with local bindings in meta."
+(defmacro sfn
+  "Serializable function.
+
+  Like fn, but stores it's form with local bindings in metadata, for further use in
+  serialization and deserialization."
   [& body]
   (let [namespace (ns-name *ns*)
         form &form
         {:keys [line column]} (meta &form)
-        fn-name (-> body first meta ::name)
-        fn-name (generate-name namespace fn-name line column)
+        fn-name (->> (-> body first meta :rask.api/name)
+                     (generate-name namespace line column))
         local-bindings (bindings (vals &env) (used-symbols (rest body)))]
-    `(make-serializable
-       (fn ~@body)
-       '~fn-name
-       (list 'let ~(vec local-bindings) '~form))))
+    `(serializable-fn
+       (with-meta
+         (fn ~@body)
+         {:rask.api/name     '~fn-name
+          :rask.api/form     '~form
+          :rask.api/bindings ~local-bindings}))))
 
-(defmacro defraskfn
-  "Like defn, but tries to store it's form with local bindings in meta."
+(defmacro defsfn
+  "Like defn, but serializable. See sfn."
   [name & body]
   (let [[x & xs] body
-        x (with-meta x {:rask/name name})]
+        x (with-meta x {:rask.api/name name})]
     `(def ~name
-       (raskfn ~x ~@xs))))
+       (sfn ~x ~@xs))))
 
-;;todo remove locking
 (defn iterator
   [state next & [has-next]]
   (let [state (AtomicReference. state)]
@@ -70,10 +67,8 @@
       java.io.Serializable
       java.util.Iterator
       (hasNext [_]
-        (locking state
-          ((or has-next (constantly true)) (.get state))))
+        ((or has-next (constantly true)) (.get state)))
       (next [_]
-        (locking state
-          (let [[x & state'] (next (.get state))]
-            (.set state state')
-            x))))))
+        (let [[x & state'] (next (.get state))]
+          (.set state state')
+          x)))))
