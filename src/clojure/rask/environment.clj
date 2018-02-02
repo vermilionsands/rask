@@ -49,7 +49,7 @@
 
   The program execution will be logged and displayed with a generated default name or passed job-name."
   ([env & [job-name]]
-   (.execute env (or job-name "Clojure Flink Streaming Job"))))
+   (.execute env (or job-name "Flink/Rask Streaming Job"))))
 
 ;; --------------------------------------------------------------------------------------------------------
 ;; configuration
