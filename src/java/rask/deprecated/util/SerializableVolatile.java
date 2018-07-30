@@ -1,4 +1,4 @@
-package rask.util;
+package rask.deprecated.util;
 
 import clojure.lang.IDeref;
 

@@ -1,4 +1,4 @@
-(ns rask.type
+(ns rask.deprecated.type
   (:import [java.util Map List]
            [org.apache.flink.api.common.typeinfo TypeInformation]
            [org.apache.flink.api.java.tuple Tuple]

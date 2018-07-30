@@ -1,6 +1,6 @@
-(ns rask.tuple
+(ns rask.deprecated.tuple
   (:refer-clojure :exclude [nth])
-  (:require [rask.type :as types])
+  (:require [rask.deprecated.type :as types])
   (:import [org.apache.flink.api.common.typeinfo TypeInformation]
            [org.apache.flink.api.java.tuple
             Tuple0 Tuple1 Tuple2 Tuple3 Tuple4 Tuple5 Tuple6 Tuple7 Tuple8 Tuple9

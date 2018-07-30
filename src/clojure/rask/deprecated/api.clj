@@ -1,6 +1,6 @@
-(ns rask.api
+(ns rask.deprecated.api
   (:import [clojure.lang Compiler$LocalBinding]
-           [rask.util SerializableFn]
+           [rask.deprecated.util SerializableFn]
            [java.util.concurrent.atomic AtomicReference]))
 
 (defn- serializable-fn

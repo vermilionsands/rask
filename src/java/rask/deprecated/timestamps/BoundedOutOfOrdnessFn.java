@@ -1,8 +1,8 @@
-package rask.api.timestamps;
+package rask.deprecated.timestamps;
 
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import rask.util.SerializableFn;
+import rask.deprecated.util.SerializableFn;
 
 public class BoundedOutOfOrdnessFn extends BoundedOutOfOrdernessTimestampExtractor {
 

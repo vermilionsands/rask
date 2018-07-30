@@ -1,8 +1,8 @@
-package rask.api.functions.source;
+package rask.deprecated.api.functions.source;
 
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-import rask.util.SerializableFn;
-import rask.util.SerializableVolatile;
+import rask.deprecated.util.SerializableFn;
+import rask.deprecated.util.SerializableVolatile;
 
 public class RichParallelSourceFn extends RichParallelSourceFunction{
 

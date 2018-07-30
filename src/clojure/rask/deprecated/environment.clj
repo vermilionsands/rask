@@ -1,4 +1,4 @@
-(ns rask.environment
+(ns rask.deprecated.environment
   (:require [clojure.walk :as walk])
   (:import [java.util Collection Iterator]
            [org.apache.flink.streaming.api.environment StreamExecutionEnvironment RemoteStreamEnvironment]
@@ -7,8 +7,8 @@
            [org.apache.flink.streaming.api.functions.source SourceFunction]
            [org.apache.flink.api.common.typeinfo TypeInformation]
            [org.apache.flink.api.java.utils ParameterTool]
-           [rask.util SerializableVolatile]
-           [rask.api.functions.source RichParallelSourceFn]))
+           [rask.deprecated.util SerializableVolatile]
+           [rask.deprecated.api.functions.source RichParallelSourceFn]))
 
 ;; --------------------------------------------------------------------------------------------------------
 ;; environment

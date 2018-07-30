@@ -1,7 +1,7 @@
-package rask.api.timestamps;
+package rask.deprecated.timestamps;
 
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
-import rask.util.SerializableFn;
+import rask.deprecated.util.SerializableFn;
 
 public class AscendingTimestampFn extends AscendingTimestampExtractor{
 
