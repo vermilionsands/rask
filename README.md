@@ -1,7 +1,5 @@
 # rask
 
-A simple Clojure wrapper for Apache Flink. Work in progress.
-
 ## License
 
 Copyright © 2018 vermilionsands
