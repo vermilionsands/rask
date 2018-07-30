@@ -1,5 +1,5 @@
 (ns rask.util
-  (:refer-clojure :exclude [fn])
+  (:refer-clojure :exclude [fn nth])
   (:import [clojure.lang IFn Fn IObj]
            [org.apache.flink.api.java.tuple Tuple0 Tuple1 Tuple2 Tuple3 Tuple4 Tuple5 Tuple6 Tuple7 Tuple8 Tuple9
                                             Tuple10 Tuple11 Tuple12 Tuple13 Tuple14 Tuple15 Tuple16 Tuple17 Tuple18
@@ -49,6 +49,16 @@
          (IllegalArgumentException.
            (format "Can't create Tuple with more than 25 arguments. Too many arguments: %s."
                    (+ (count xs) 6))))))))
+
+(defn nth
+  ([^Tuple tuple index]
+   (nth tuple index nil))
+  ([^Tuple tuple index not-found]
+   (or
+     (try
+       (.getField tuple index)
+       (catch IndexOutOfBoundsException _ nil))
+     not-found)))
 
 (defn type-hint ^TypeInformation [c & generics]
   (cond

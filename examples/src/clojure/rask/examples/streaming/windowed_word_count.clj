@@ -1,5 +1,5 @@
-(ns rask.examples.streaming.word-count
-  "Word count from string socket stream."
+(ns rask.examples.streaming.windowed-word-count
+  "Word count from string socket stream with time window."
   (:require [clojure.string :as string]
             [clojure.tools.cli :as cli]
             [rask.streaming :as s]
@@ -11,7 +11,19 @@
     :default "localhost"]
    [nil "--port PORT" "Port"
     :parse-fn #(Integer/parseInt %)]
+   [nil "--window MILLISECOND" "Windows length"
+    :default 5000
+    :parse-fn #(Long/parseLong %)]
    ["-h" "--help"]])
+
+(deftype WordCount [word count])
+
+(def custom-sum
+  (u/fn [acc x]
+    (u/tuple
+      (u/nth acc 0)
+      (+ (u/nth acc 1)
+         (u/nth x 1)))))
 
 (defn -main [& args]
   (let [{:keys [options summary]} (cli/parse-opts args cli-options)]
@@ -19,13 +31,17 @@
       (binding [*out* *err*]
         (println "Usage:\n")
         (println summary))
-      (let [{:keys [host port]} options
+      (let [{:keys [host port window]} options
             env (s/env)]
         (->>
           (s/stream env {:host host :port port})
-          (s/mapcat (fn [x] (-> x string/lower-case (string/split #"\W+"))))
-          (s/map (u/fn [x] (u/tuple x (int 1))) (u/tuple-hint String Integer))
+          (s/mapcat
+            (u/fn [x]
+              (let [xs (-> x string/lower-case (string/split #"\W+"))]
+                (map #(u/tuple % 1) xs)))
+            (u/tuple-hint String Long))
           (s/group-by 0)
-          (s/sum 1)
+          (s/time-window window)
+          (s/reduce custom-sum)
           s/print)
         (s/execute env "Clojure word count from socket text stream.")))))
