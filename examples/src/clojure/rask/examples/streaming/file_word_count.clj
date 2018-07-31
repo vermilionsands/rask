@@ -21,7 +21,7 @@
 (defn -main [& args]
   (let [{:keys [options]} (cli/parse-opts args cli-options)
         {:keys [input output size slide]} options
-        env (s/env {:global-job-params options})]
+        env (s/env {:global-job-params args})]
     (when-not input
       (println "Executing with default input data.")
       (println "Use --input to specify input file."))

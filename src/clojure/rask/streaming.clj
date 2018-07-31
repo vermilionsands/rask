@@ -5,6 +5,7 @@
            [org.apache.flink.api.common.functions FlatMapFunction MapFunction ReduceFunction]
            [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
            [org.apache.flink.api.java.functions KeySelector]
+           [org.apache.flink.api.java.utils ParameterTool]
            [org.apache.flink.core.fs FileSystem$WriteMode]
            [org.apache.flink.streaming.api.datastream DataStream DataStreamSink KeyedStream SingleOutputStreamOperator WindowedStream]
            [org.apache.flink.streaming.api.environment StreamExecutionEnvironment]
@@ -12,16 +13,23 @@
            [org.apache.flink.util Collector]))
 
 ;; todo add remote and configuration options
+(defn- get-or-create-env [options]
+  (cond
+    (:local? options)
+    (StreamExecutionEnvironment/createLocalEnvironment)
+    :else
+    (StreamExecutionEnvironment/getExecutionEnvironment)))
+
 (defn env
   ([]
    (env nil))
   ([options]
-   (cond
-     (:local? options)
-     (StreamExecutionEnvironment/createLocalEnvironment)
-
-     :else
-     (StreamExecutionEnvironment/getExecutionEnvironment))))
+   (let [env (get-or-create-env options)]
+     (when (:global-job-params options)
+       (.setGlobalJobParameters
+         (.getConfig env)
+         (ParameterTool/fromArgs (into-array String (:global-job-params options)))))
+     env)))
 
 (defn execute
   [env & [job-name]]
