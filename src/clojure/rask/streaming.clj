@@ -1,9 +1,11 @@
 (ns rask.streaming
   (:refer-clojure :exclude [group-by map mapcat print reduce])
   (:require [rask.util :as u])
-  (:import [org.apache.flink.api.common.functions FlatMapFunction MapFunction ReduceFunction]
+  (:import [java.util Collection]
+           [org.apache.flink.api.common.functions FlatMapFunction MapFunction ReduceFunction]
            [org.apache.flink.api.common.typeinfo TypeHint TypeInformation]
            [org.apache.flink.api.java.functions KeySelector]
+           [org.apache.flink.core.fs FileSystem$WriteMode]
            [org.apache.flink.streaming.api.datastream DataStream DataStreamSink KeyedStream SingleOutputStreamOperator WindowedStream]
            [org.apache.flink.streaming.api.environment StreamExecutionEnvironment]
            [org.apache.flink.streaming.api.windowing.time Time]
@@ -86,6 +88,15 @@
          slide' (if (instance? Time slide) size (Time/milliseconds slide))]
      (.timeWindow stream size' slide'))))
 
+(defn ^WindowedStream count-window
+  ([size ^KeyedStream stream]
+   (let [size' (if (instance? Time size) size (Time/milliseconds size))]
+     (.countWindow stream size')))
+  ([size slide ^KeyedStream stream]
+   (let [size'  (if (instance? Time size) size (Time/milliseconds size))
+         slide' (if (instance? Time slide) size (Time/milliseconds slide))]
+     (.countWindow stream size' slide'))))
+
 (defn ^SingleOutputStreamOperator sum [k ^DataStream stream]
   (cond
     (instance? KeyedStream stream)
@@ -101,14 +112,44 @@
 (defn ^DataStreamSink print [^DataStream stream]
   (.print stream))
 
-;; todo
-;; string from socket
-;; string from file
-;; collection
-;; iterator
-;; object stream from collection
-;; source - kafka? fn?
 (defn stream [^StreamExecutionEnvironment env spec]
-  (let [{:keys [host port del max-retry]
-         :or   {del "\n" max-retry 0}} spec]
-    (.socketTextStream env ^String host ^int port ^String del ^long max-retry)))
+  (let [{:keys [host port del max-retry path charset]
+         :or   {del "\n" max-retry 0 charset "UTF-8"}} spec]
+    (cond
+      path
+      (.readTextFile env path charset)
+
+      :else
+      (.socketTextStream env ^String host ^int port ^String del ^long max-retry))))
+
+(defn to-stream
+  ([env xs]
+   (cond
+     (instance? Collection xs)
+     (.fromCollection env ^Collection xs)
+
+     (.isArray (.getClass xs))
+     (.fromElements env xs)))
+  ([env xs type-info]
+   (let [type-info]
+     (cond
+       (instance? Collection xs)
+       (.fromCollection env ^Collection xs
+                        ^TypeInformation (if (instance? TypeInformation type-info)
+                                           type-info
+                                           (TypeInformation/of ^Class type-info)))
+
+       (.isArray (.getClass xs))
+       (.fromElements env xs)))))
+
+(defn to-file
+  ([path ^DataStream stream]
+   (.writeAsText stream path))
+  ([path mode ^DataStream stream]
+   (if-let [mode
+            (cond
+              (= mode :no-overwrite) FileSystem$WriteMode/NO_OVERWRITE
+              (= mode :overwrite) FileSystem$WriteMode/OVERWRITE
+              :else nil)]
+     (.writeAsText stream path mode)
+     (to-file path stream))))
