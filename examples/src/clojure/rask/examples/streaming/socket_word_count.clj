@@ -1,4 +1,4 @@
-(ns rask.examples.streaming.word-count
+(ns rask.examples.streaming.socket-word-count
   "Word count from string socket stream."
   (:require [clojure.string :as string]
             [clojure.tools.cli :as cli]

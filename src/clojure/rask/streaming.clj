@@ -90,12 +90,9 @@
 
 (defn ^WindowedStream count-window
   ([size ^KeyedStream stream]
-   (let [size' (if (instance? Time size) size (Time/milliseconds size))]
-     (.countWindow stream size')))
+   (.countWindow stream size))
   ([size slide ^KeyedStream stream]
-   (let [size'  (if (instance? Time size) size (Time/milliseconds size))
-         slide' (if (instance? Time slide) size (Time/milliseconds slide))]
-     (.countWindow stream size' slide'))))
+   (.countWindow stream size slide)))
 
 (defn ^SingleOutputStreamOperator sum [k ^DataStream stream]
   (cond
@@ -131,16 +128,15 @@
      (.isArray (.getClass xs))
      (.fromElements env xs)))
   ([env xs type-info]
-   (let [type-info]
-     (cond
-       (instance? Collection xs)
-       (.fromCollection env ^Collection xs
-                        ^TypeInformation (if (instance? TypeInformation type-info)
-                                           type-info
-                                           (TypeInformation/of ^Class type-info)))
+   (cond
+     (instance? Collection xs)
+     (.fromCollection env ^Collection xs
+                      ^TypeInformation (if (instance? TypeInformation type-info)
+                                         type-info
+                                         (TypeInformation/of ^Class type-info)))
 
-       (.isArray (.getClass xs))
-       (.fromElements env xs)))))
+     (.isArray (.getClass xs))
+     (.fromElements env xs))))
 
 (defn to-file
   ([path ^DataStream stream]

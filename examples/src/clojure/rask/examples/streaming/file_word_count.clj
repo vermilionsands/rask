@@ -4,10 +4,11 @@
             [clojure.tools.cli :as cli]
             [rask.examples.samples :as samples]
             [rask.streaming :as s]
-            [rask.util :as u]))
+            [rask.util :as u])
+  (:gen-class))
 
 (def cli-options
-   [nil "--input PATH" "Input path"]
+  [[nil "--input PATH" "Input path"]
    [nil "--output PATH" "Output path"]
    [nil "--size N" "Window length"
     :default 10
@@ -15,7 +16,7 @@
    [nil "--slide N" "Window slide"
     :default 5
     :parse-fn #(Long/parseLong %)]
-   ["-h" "--help"])
+   ["-h" "--help"]])
 
 (defn -main [& args]
   (let [{:keys [options]} (cli/parse-opts args cli-options)
@@ -30,12 +31,13 @@
     (let [stream
           (->>
             (if input
-              (s/stream env {:file input})
+              (s/stream env {:path input})
               (s/to-stream env samples/words))
             (s/mapcat
               (u/fn [x]
                 (let [xs (-> x string/lower-case (string/split #"\W+"))]
-                  (map #(u/tuple % 1) xs))))
+                  (map #(u/tuple % 1) xs)))
+              (u/tuple-hint String Long))
             (s/group-by 0)
             (s/count-window size slide)
             (s/sum 1))]
