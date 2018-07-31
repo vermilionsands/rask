@@ -10,7 +10,23 @@
            [org.apache.flink.streaming.api.datastream DataStream DataStreamSink KeyedStream SingleOutputStreamOperator WindowedStream]
            [org.apache.flink.streaming.api.environment StreamExecutionEnvironment]
            [org.apache.flink.streaming.api.windowing.time Time]
-           [org.apache.flink.util Collector]))
+           [org.apache.flink.util Collector]
+           [org.apache.flink.streaming.api.functions.source SourceFunction]
+           [org.apache.flink.streaming.api.windowing.assigners WindowAssigner EventTimeSessionWindows]
+           [org.apache.flink.streaming.api TimeCharacteristic]))
+
+(defn- ^TypeInformation coerce-type-information [x]
+  (if (instance? TypeInformation x) x (TypeInformation/of ^Class x)))
+
+(defn- coerce-time [x]
+  (if (instance? Time x) x (Time/milliseconds x)))
+
+(defn- coerce-time-event
+  [event]
+  (or ({:event      TimeCharacteristic/EventTime
+        :ingestion  TimeCharacteristic/IngestionTime
+        :processing TimeCharacteristic/ProcessingTime} event)
+      event))
 
 ;; todo add remote and configuration options
 (defn- get-or-create-env [options]
@@ -29,6 +45,10 @@
        (.setGlobalJobParameters
          (.getConfig env)
          (ParameterTool/fromArgs (into-array String (:global-job-params options)))))
+     (when (:time-characteristic options)
+       (.setStreamTimeCharacteristic env (coerce-time-event (:time-characteristic options))))
+     (when (:parallelism options)
+       (.setParallelism env (:parallelism options)))
      env)))
 
 (defn execute
@@ -87,14 +107,22 @@
 
 (def key-by group-by)
 
+(defn time-window-assigner [k & args]
+  (case k
+    :with-gap
+    (EventTimeSessionWindows/withGap (coerce-time (first args)))
+
+    :with-dynamic-gap
+    (EventTimeSessionWindows/withDynamicGap (first args))))
+
+(defn ^WindowedStream window [^WindowAssigner assigner ^KeyedStream stream]
+  (.window stream assigner))
+
 (defn ^WindowedStream time-window
   ([size ^KeyedStream stream]
-   (let [size' (if (instance? Time size) size (Time/milliseconds size))]
-     (.timeWindow stream size')))
+   (.timeWindow stream (coerce-time size)))
   ([size slide ^KeyedStream stream]
-   (let [size'  (if (instance? Time size) size (Time/milliseconds size))
-         slide' (if (instance? Time slide) size (Time/milliseconds slide))]
-     (.timeWindow stream size' slide'))))
+   (.timeWindow stream (coerce-time size) (coerce-time slide))))
 
 (defn ^WindowedStream count-window
   ([size ^KeyedStream stream]
@@ -118,9 +146,14 @@
   (.print stream))
 
 (defn stream [^StreamExecutionEnvironment env spec]
-  (let [{:keys [host port del max-retry path charset]
-         :or   {del "\n" max-retry 0 charset "UTF-8"}} spec]
+  (let [{:keys [host port del max-retry path charset source source-name type]
+         :or   {del "\n" max-retry 0 charset "UTF-8" source-name "Custom source"}} spec]
     (cond
+      source
+      (if type
+        (.addSource env ^SourceFunction source (coerce-type-information type))
+        (.addSource env ^SourceFunction source))
+
       path
       (.readTextFile env path charset)
 
@@ -138,10 +171,7 @@
   ([env xs type-info]
    (cond
      (instance? Collection xs)
-     (.fromCollection env ^Collection xs
-                      ^TypeInformation (if (instance? TypeInformation type-info)
-                                         type-info
-                                         (TypeInformation/of ^Class type-info)))
+     (.fromCollection env ^Collection xs (coerce-type-information type-info))
 
      (.isArray (.getClass xs))
      (.fromElements env xs))))

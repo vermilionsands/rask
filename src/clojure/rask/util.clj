@@ -60,6 +60,9 @@
        (catch IndexOutOfBoundsException _ nil))
      not-found)))
 
+(defn into-tuple [xs]
+  (apply tuple xs))
+
 (defn type-hint ^TypeInformation [c & generics]
   (cond
     (isa? c Tuple)
