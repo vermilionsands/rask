@@ -11,7 +11,7 @@
     :default "localhost"]
    [nil "--port PORT" "Port"
     :parse-fn #(Integer/parseInt %)]
-   [nil "--window MILLISECOND" "Windows length"
+   [nil "--window MILLISECOND" "Window length"
     :default 5000
     :parse-fn #(Long/parseLong %)]
    ["-h" "--help"]])
@@ -44,4 +44,4 @@
           (s/time-window window)
           (s/reduce custom-sum)
           s/print)
-        (s/execute env "Clojure word count from socket text stream.")))))
+        (s/execute env "Clojure time windowed word count from socket text stream.")))))
