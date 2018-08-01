@@ -1,13 +1,15 @@
 (ns rask.util
   (:refer-clojure :exclude [fn nth])
-  (:import [clojure.lang IFn Fn IObj]
+  (:import [clojure.lang IFn Fn IObj IDeref]
            [org.apache.flink.api.java.tuple Tuple0 Tuple1 Tuple2 Tuple3 Tuple4 Tuple5 Tuple6 Tuple7 Tuple8 Tuple9
                                             Tuple10 Tuple11 Tuple12 Tuple13 Tuple14 Tuple15 Tuple16 Tuple17 Tuple18
                                             Tuple19 Tuple20 Tuple21 Tuple22 Tuple23 Tuple24 Tuple25 Tuple]
            [org.apache.flink.api.java.typeutils TupleTypeInfo MapTypeInfo ListTypeInfo]
            [org.apache.flink.api.common.typeinfo TypeInformation]
            [java.io Serializable]
-           [java.util List Map]))
+           [java.util List Map]
+           [org.apache.flink.streaming.api.functions.source SourceFunction SourceFunction$SourceContext]
+           [org.apache.flink.streaming.api.watermark Watermark]))
 
 (defn tuple
   ([]
@@ -139,6 +141,39 @@
     (require source-ns)
     this))
 
+(definterface Resettable
+  (reset [x]))
+
+(deftype SerializableVolatile [^:volatile-mutable state]
+  Serializable
+  Resettable
+  (reset [_ x] (set! state x))
+
+  IDeref
+  (deref [_] state)
+
+  ReadResolve
+  (readResolve [this]
+    (if (boolean? state) (set! state (boolean state)))
+    this))
+
 (defmacro fn [& body]
   (let [namespace (ns-name *ns*)]
     `(->SerializableFn (clojure.core/fn ~@body) '~namespace)))
+
+(defn source
+  ([f] (source f nil))
+  ([f on-stop]
+   (let [stop? (->SerializableVolatile false)]
+     (reify SourceFunction
+       (^void run [_ ^SourceFunction$SourceContext ctx]
+         (f ctx stop?))
+       (cancel [_]
+         (vreset! stop? true)
+         (when on-stop (on-stop)))))))
+
+(defn collect-with-timestamp [^SourceFunction$SourceContext ctx x n]
+  (.collectWithTimestamp ctx x n))
+
+(defn emit-watermark [^SourceFunction$SourceContext ctx n]
+  (.emitWatermark ctx (Watermark. n)))

@@ -4,9 +4,7 @@
   (:require [clojure.tools.cli :as cli]
             [rask.streaming :as s]
             [rask.util :as u])
-  (:gen-class)
-  (:import [org.apache.flink.streaming.api.functions.source SourceFunction SourceFunction$SourceContext]
-           [org.apache.flink.streaming.api.watermark Watermark]))
+  (:gen-class))
 
 (def cli-options
   [[nil "--output PATH" "Output path"]
@@ -22,21 +20,13 @@
      ["a" 10 1]
      ["c" 11 1]]))
 
-(defn source
-  ([f] (source f nil))
-  ([f on-stop]
-   (reify SourceFunction
-     (^void run [_ ^SourceFunction$SourceContext ctx]
-       (f ctx nil))
-     (cancel [_] (when on-stop (on-stop))))))
-
 (def generator
-  (source
-    (u/fn [^SourceFunction$SourceContext ctx _]
+  (u/source
+    (u/fn [ctx _]
       (doseq [x input]
-        (.collectWithTimestamp ctx x (u/nth x 1))
-        (.emitWatermark ctx (Watermark. (dec (u/nth x 1)))))
-      (.emitWatermark ctx (Watermark. Long/MAX_VALUE)))))
+        (u/collect-with-timestamp ctx x (u/nth x 1))
+        (u/emit-watermark ctx (dec (u/nth x 1))))
+      (u/emit-watermark ctx Long/MAX_VALUE))))
 
 (defn -main [& args]
   (let [{:keys [options]} (cli/parse-opts args cli-options)
