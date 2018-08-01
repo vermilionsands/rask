@@ -1,4 +1,4 @@
-(ns rask.examples.streaming.file-word-count
+(ns rask.examples.streaming.windowing.count-window-word-count
   "Word count with file input/output with counting window."
   (:require [clojure.string :as string]
             [clojure.tools.cli :as cli]

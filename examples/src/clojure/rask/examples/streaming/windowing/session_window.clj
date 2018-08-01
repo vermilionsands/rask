@@ -1,4 +1,4 @@
-(ns rask.examples.streaming.session-window
+(ns rask.examples.streaming.windowing.session-window
   "Session windowing that keys events by id and groups and counts them in
    session with gaps of 3 milliseconds."
   (:require [clojure.tools.cli :as cli]

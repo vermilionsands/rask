@@ -1,4 +1,4 @@
-(ns rask.examples.streaming.windowed-word-count
+(ns rask.examples.streaming.windowing.time-window-word-count
   "Word count from string socket stream with time window."
   (:require [clojure.string :as string]
             [clojure.tools.cli :as cli]
